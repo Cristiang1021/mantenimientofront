@@ -126,7 +126,32 @@ export default function MaintenancePage() {
   };
 
   const handleAddToolInput = () => {
-    setToolInputs([...toolInputs, { id_herramienta: "", cantidad_usada: "" }]);
+    if (toolInputs.length < tools.length) {
+      setToolInputs([...toolInputs, { id_herramienta: "", cantidad_usada: "" }]);
+    } else {
+      toast({
+        title: "Error",
+        description: "Ya has añadido todas las herramientas disponibles.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleToolChange = (index: number, field: 'id_herramienta' | 'cantidad_usada', value: string) => {
+    setToolInputs((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, [field]: value } : item
+      )
+    );
+  };
+
+  const isToolAlreadySelected = (id_herramienta: string) => {
+    return toolInputs.some(tool => tool.id_herramienta === id_herramienta);
+  };
+
+  const getAvailableQuantity = (id_herramienta: string) => {
+    const tool = tools.find(t => t.id_herramienta === id_herramienta);
+    return tool ? tool.cantidad : 0;
   };
 
   const handleFieldChange = (field: keyof Maintenance, value: string) => {
@@ -438,23 +463,21 @@ export default function MaintenancePage() {
             <div className="mt-4">
               <Label>Herramientas</Label>
               {toolInputs.map((input, index) => (
-                <div key={index} className="flex items-center gap-2">
+                <div key={index} className="flex items-center gap-2 mb-2">
                   <Select
                     value={input.id_herramienta}
-                    onValueChange={(value) =>
-                      setToolInputs((prev) =>
-                        prev.map((item, i) =>
-                          i === index ? { ...item, id_herramienta: value } : item
-                        )
-                      )
-                    }
+                    onValueChange={(value) => handleToolChange(index, 'id_herramienta', value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccione herramienta" />
                     </SelectTrigger>
                     <SelectContent>
                       {tools.map((tool) => (
-                        <SelectItem key={tool.id_herramienta} value={tool.id_herramienta}>
+                        <SelectItem 
+                          key={tool.id_herramienta} 
+                          value={tool.id_herramienta}
+                          disabled={isToolAlreadySelected(tool.id_herramienta) && tool.id_herramienta !== input.id_herramienta}
+                        >
                           {`${tool.nombre} (${tool.cantidad})`}
                         </SelectItem>
                       ))}
@@ -464,16 +487,28 @@ export default function MaintenancePage() {
                     type="number"
                     placeholder="Cantidad usada"
                     value={input.cantidad_usada}
-                    onChange={(e) =>
-                      setToolInputs((prev) =>
-                        prev.map((item, i) =>
-                          i === index
-                            ? { ...item, cantidad_usada: e.target.value }
-                            : item
-                        )
-                      )
-                    }
+                    onChange={(e) => {
+                      const newValue = e.target.value;
+                      const availableQuantity = getAvailableQuantity(input.id_herramienta);
+                      if (parseInt(newValue) > availableQuantity) {
+                        toast({
+                          title: "Error",
+                          description: `La cantidad máxima disponible es ${availableQuantity}`,
+                          variant: "destructive",
+                        });
+                      } else {
+                        handleToolChange(index, 'cantidad_usada', newValue);
+                      }
+                    }}
+                    min="1"
+                    max={getAvailableQuantity(input.id_herramienta).toString()}
                   />
+                  <Button 
+                    variant="destructive" 
+                    onClick={() => setToolInputs(prev => prev.filter((_, i) => i !== index))}
+                  >
+                    Eliminar
+                  </Button>
                 </div>
               ))}
               <Button onClick={handleAddToolInput}>Añadir Herramienta</Button>

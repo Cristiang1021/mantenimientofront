@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
-import { AlertCircle, Calendar, Clock, Bell, LayoutDashboard, Wrench, LogOut, CheckCircle, XCircle, User } from 'lucide-react'
+import React, { useEffect, useState, useCallback } from "react"
+import { AlertCircle, Calendar, Clock, Bell, LayoutDashboard, Wrench, LogOut, User } from 'lucide-react'
 import { useRouter, useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,7 +14,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { useToast } from "@/hooks/use-toast"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import safeLocalStorage from "@/utils/safeLocalStorage";
+
 type Mantenimiento = {
   id_mantenimiento: string
   tipo_mantenimiento: string
@@ -22,6 +22,7 @@ type Mantenimiento = {
   tiempo_requerido: number
   descripcion: string
   estado_actual: string
+  observacion: string
   herramientas: Array<{
     id_herramienta: string
     nombre: string
@@ -45,7 +46,7 @@ type Perfil = {
 }
 
 export default function DetallesMantenimiento() {
-  const router = useRouter()
+  //const router = useRouter()
   const params = useParams()
   const { toast } = useToast()
   const [mantenimiento, setMantenimiento] = useState<Mantenimiento | null>(null)
@@ -58,10 +59,23 @@ export default function DetallesMantenimiento() {
     foto: null,
   })
 
+  const showToast = useCallback((title: string, description: string, type: "success" | "error") => {
+    const toastStyles = {
+      success: "bg-green-100 text-green-800 border-green-500",
+      error: "bg-red-100 text-red-800 border-red-500",
+    }
+
+    toast({
+      title,
+      description,
+      className: `flex items-center justify-center border-l-4 rounded-lg shadow-lg p-4 transition-all duration-300 ${toastStyles[type]} mx-auto`,
+    })
+  }, [toast])
+
   useEffect(() => {
     const fetchDetalles = async () => {
       try {
-        const token = safeLocalStorage.getItem("token")
+        const token = localStorage.getItem("token")
         const response = await fetch(
           `${process.env.API_BASE_URL}/managment/${params.id_mantenimiento}`,
           {
@@ -77,6 +91,7 @@ export default function DetallesMantenimiento() {
         setMantenimiento(data.mantenimiento)
         setMaquinaria(data.maquinaria)
         setEstado(data.mantenimiento.estado_actual)
+        setObservacion(data.mantenimiento.observacion || "")
       } catch (error) {
         showToast("Error", error instanceof Error ? error.message : "Error desconocido", "error")
       }
@@ -84,7 +99,7 @@ export default function DetallesMantenimiento() {
 
     const fetchPerfil = async () => {
       try {
-        const token = safeLocalStorage.getItem("token")
+        const token = localStorage.getItem("token")
         const response = await fetch(`${process.env.API_BASE_URL}/api/operario/perfil`, {
           headers: { Authorization: `Bearer ${token}` },
         })
@@ -102,12 +117,11 @@ export default function DetallesMantenimiento() {
 
     fetchDetalles()
     fetchPerfil()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id_mantenimiento, toast])
+  }, [params.id_mantenimiento, showToast])
 
   const handleEmpezarMantenimiento = async () => {
     try {
-      const token = safeLocalStorage.getItem("token")
+      const token = localStorage.getItem("token")
       const response = await fetch(
         `${process.env.API_BASE_URL}/managment/${params.id_mantenimiento}/actualizar-estado`,
         {
@@ -116,7 +130,7 @@ export default function DetallesMantenimiento() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ estado: "En progreso" }),
+          body: JSON.stringify({ estado: "En progreso", observacion: "Se ha iniciado el mantenimiento" }),
         }
       )
 
@@ -132,9 +146,9 @@ export default function DetallesMantenimiento() {
     }
   }
 
-  const handleGuardarEstado = async () => {
+  const handleGuardarEstado = async (localObservacion: string) => {
     try {
-      const token = safeLocalStorage.getItem("token")
+      const token = localStorage.getItem("token")
       const response = await fetch(
         `${process.env.API_BASE_URL}/managment/${params.id_mantenimiento}/actualizar-estado`,
         {
@@ -143,7 +157,7 @@ export default function DetallesMantenimiento() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ estado, observacion }),
+          body: JSON.stringify({ estado, observacion: localObservacion }),
         }
       )
 
@@ -151,35 +165,43 @@ export default function DetallesMantenimiento() {
         throw new Error("No se pudo actualizar el estado.")
       }
 
+      setObservacion(localObservacion);
       showToast("Éxito", "Estado y observaciones actualizados correctamente.", "success")
     } catch (error) {
       showToast("Error", error instanceof Error ? error.message : "Error desconocido", "error")
     }
   }
 
-  const showToast = (title: string, description: string, type: "success" | "error") => {
-    const toastStyles = {
-      success: "bg-green-100 text-green-800 border-green-500",
-      error: "bg-red-100 text-red-800 border-red-500",
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const icon = type === "success" ? (
-      <CheckCircle className="h-6 w-6" />
-    ) : (
-      <XCircle className="h-6 w-6" />
-    )
-
-    toast({
-      title,
-      description,
-      className: `flex items-center justify-center border-l-4 rounded-lg shadow-lg p-4 transition-all duration-300 ${toastStyles[type]} mx-auto`,
-    })
-  }
-
   if (!mantenimiento || !maquinaria) return <p>Cargando...</p>
 
-  const Sidebar = () => (
+  return (
+    <div className="flex h-screen">
+      <Toaster />
+      <Sidebar />
+      <main className="flex-1 bg-gray-100">
+        <Header perfil={perfil} estado={estado} />
+        <div className="container mx-auto p-8">
+          <div className="grid gap-8 md:grid-cols-3">
+            <MaintenanceInfo 
+              mantenimiento={mantenimiento}
+              maquinaria={maquinaria}
+              estado={estado}
+              setEstado={setEstado}
+              observacion={observacion}
+              handleEmpezarMantenimiento={handleEmpezarMantenimiento}
+              handleGuardarEstado={handleGuardarEstado}
+            />
+            <MachineInfo maquinaria={maquinaria} />
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+const Sidebar = () => {
+  const router = useRouter()
+  return (
     <aside className="w-64 bg-white shadow-md">
       <div className="p-4">
         <div className="flex items-center space-x-2">
@@ -206,8 +228,11 @@ export default function DetallesMantenimiento() {
       </nav>
     </aside>
   )
+}
 
-  const Header = () => (
+const Header = ({ perfil, estado }: { perfil: Perfil, estado: string }) => {
+  const router = useRouter()
+  return (
     <header className="bg-white shadow-sm">
       <div className="flex items-center justify-between px-8 py-4">
         <h1 className="text-2xl font-bold">Dashboard del Mantenimiento</h1>
@@ -249,7 +274,7 @@ export default function DetallesMantenimiento() {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => {
-                  safeLocalStorage.removeItem("token")
+                  localStorage.removeItem("token")
                   router.push("/login")
                 }}
               >
@@ -262,8 +287,40 @@ export default function DetallesMantenimiento() {
       </div>
     </header>
   )
+}
 
-  const MaintenanceInfo = () => (
+const MaintenanceInfo = ({ 
+  mantenimiento, 
+  maquinaria, 
+  estado, 
+  setEstado, 
+  observacion, 
+  handleEmpezarMantenimiento, 
+  handleGuardarEstado 
+}: { 
+  mantenimiento: Mantenimiento
+  maquinaria: Maquinaria
+  estado: string
+  setEstado: React.Dispatch<React.SetStateAction<string>>
+  observacion: string
+  handleEmpezarMantenimiento: () => Promise<void>
+  handleGuardarEstado: (localObservacion: string) => Promise<void>
+}) => {
+  const [localObservacion, setLocalObservacion] = useState(observacion);
+
+  useEffect(() => {
+    setLocalObservacion(observacion);
+  }, [observacion]);
+
+  const handleObservacionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setLocalObservacion(e.target.value);
+  };
+
+  const handleSubmit = () => {
+    handleGuardarEstado(localObservacion);
+  };
+
+  return (
     <Card className="md:col-span-2">
       <CardHeader>
         <CardTitle>
@@ -333,10 +390,10 @@ export default function DetallesMantenimiento() {
               </Select>
               <Textarea
                 placeholder="Añadir observaciones..."
-                value={observacion}
-                onChange={(e) => setObservacion(e.target.value)}
+                value={localObservacion}
+                onChange={handleObservacionChange}
               />
-              <Button className="mt-4" onClick={handleGuardarEstado}>
+              <Button className="mt-4" onClick={handleSubmit}>
                 Guardar Estado
               </Button>
             </>
@@ -344,58 +401,42 @@ export default function DetallesMantenimiento() {
         </div>
       </CardContent>
     </Card>
-  )
+  );
+};
 
-  const MachineInfo = () => (
-    <Card>
-      <CardHeader>
-        <CardTitle>Información de la Maquinaria</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {maquinaria.imagen && (
-          <div className="aspect-square relative overflow-hidden rounded-lg">
-            <Image
-              src={`data:image/png;base64,${maquinaria.imagen}`}
-              alt={`Imagen de ${maquinaria.nombre}`}
-              layout="fill"
-              objectFit="cover"
-            />
-          </div>
-        )}
-        <div className="space-y-2 mt-4">
-          <div className="flex justify-between">
-            <span className="font-medium">Modelo:</span>
-            <span>{maquinaria.modelo}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="font-medium">Número de Serie:</span>
-            <span>{maquinaria.numero_serie}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="font-medium">Última Revisión:</span>
-            <span>{maquinaria.ultima_revision}</span>
-          </div>
-          <p className="text-sm text-muted-foreground mt-2">
-            {maquinaria.descripcion}
-          </p>
+const MachineInfo = ({ maquinaria }: { maquinaria: Maquinaria }) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>Información de la Maquinaria</CardTitle>
+    </CardHeader>
+    <CardContent>
+      {maquinaria.imagen && (
+        <div className="aspect-square relative overflow-hidden rounded-lg">
+          <Image
+            src={`data:image/png;base64,${maquinaria.imagen}`}
+            alt={`Imagen de ${maquinaria.nombre}`}
+            layout="fill"
+            objectFit="cover"
+          />
         </div>
-      </CardContent>
-    </Card>
-  )
-
-  return (
-    <div className="flex h-screen">
-      <Toaster />
-      <Sidebar />
-      <main className="flex-1 bg-gray-100">
-        <Header />
-        <div className="container mx-auto p-8">
-          <div className="grid gap-8 md:grid-cols-3">
-            <MaintenanceInfo />
-            <MachineInfo />
-          </div>
+      )}
+      <div className="space-y-2 mt-4">
+        <div className="flex justify-between">
+          <span className="font-medium">Modelo:</span>
+          <span>{maquinaria.modelo}</span>
         </div>
-      </main>
-    </div>
-  )
-}
+        <div className="flex justify-between">
+          <span className="font-medium">Número de Serie:</span>
+          <span>{maquinaria.numero_serie}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="font-medium">Última Revisión:</span>
+          <span>{maquinaria.ultima_revision}</span>
+        </div>
+        <p className="text-sm text-muted-foreground mt-2">
+          {maquinaria.descripcion}
+        </p>
+      </div>
+    </CardContent>
+  </Card>
+)
