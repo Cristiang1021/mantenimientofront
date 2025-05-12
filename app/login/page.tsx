@@ -82,7 +82,6 @@ export default function Login() {
       {/* Decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-primary/5 to-transparent rotate-12 transform scale-150" />
-        
       </div>
 
       <div className="container px-4 md:px-6 flex items-center justify-center">
@@ -168,6 +167,17 @@ export default function Login() {
                       </span>
                     </Button>
                   </div>
+                </div>
+
+                {/* Botón para recuperar contraseña */}
+                <div className="text-right -mt-2">
+                  <button
+                    type="button"
+                    onClick={() => router.push("/recuperar")}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </button>
                 </div>
 
                 {loginError && (

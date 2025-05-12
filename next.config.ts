@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   },
   env: {
     API_BASE_URL: process.env.NODE_ENV === "development"
-      ? "https://backendmantenimiento.onrender.com" // URL en desarrollo
+      ? "http://127.0.0.1:3001" // URL en desarrollo
       : "https://backendmantenimiento.onrender.com", // URL en producción
   },
 };
