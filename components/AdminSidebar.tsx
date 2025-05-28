@@ -42,7 +42,7 @@ export default function AdminSidebar() {
               onClick={() => router.push("/admin/titulos")}
             >
               <span>🎓</span>
-              <span>Titulos</span>
+              <span>Títulos</span>
             </button>
           </li>
           <li>
